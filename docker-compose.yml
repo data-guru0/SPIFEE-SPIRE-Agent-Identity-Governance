@@ -1,0 +1,52 @@
+﻿# One container = one workload = one SPIFFE identity.
+# Each app container runs as a distinct Unix UID; the SPIRE Agent attests workloads by UID
+# (asked from the Linux kernel, not from the workload). UIDs must match spire_setup.py.
+x-app: &app
+  build: ./app
+  image: spiffe-demo-app   # one image, four workloads; identity comes from attestation, not the code
+  env_file: .env
+  volumes:
+    - spire-sockets:/run/spire/sockets   # the Workload API socket served by the SPIRE Agent
+
+services:
+  # ---------- Phase 1: the agent system (works with or without SPIRE) ----------
+  search-tool:            # the protected tool/service
+    <<: *app
+    user: "1003"
+    command: python search_tool.py
+
+  research-agent:
+    <<: *app
+    user: "1002"
+    command: python research_agent.py
+
+  orchestrator:           # CLI, run on demand: docker compose run --rm orchestrator ...
+    <<: *app
+    user: "1001"
+    profiles: [cli]
+    entrypoint: python orchestrator.py
+
+  fake-agent:             # the attacker, also a real workload on the same host
+    <<: *app
+    user: "1004"
+    profiles: [cli]
+    entrypoint: python fake_agent.py
+
+  # ---------- Phase 2: SPIRE (started by `python spire_setup.py start`) ----------
+  spire-server:
+    image: ghcr.io/spiffe/spire-server:1.14.0
+    command: ["-config", "/conf/server.conf"]
+    volumes:
+      - ./spire/server.conf:/conf/server.conf:ro
+
+  spire-agent:
+    image: ghcr.io/spiffe/spire-agent:1.14.0
+    profiles: [agent]     # kept out of plain `docker compose up` so the one-time join token is never reused
+    pid: host             # the agent must see workload processes in order to attest them
+    command: ["-config", "/conf/agent.conf", "-joinToken", "${JOIN_TOKEN:-unset}"]
+    volumes:
+      - ./spire/agent.conf:/conf/agent.conf:ro
+      - spire-sockets:/run/spire/sockets
+
+volumes:
+  spire-sockets:
