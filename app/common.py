@@ -120,6 +120,10 @@ def serve(who, handle, plain_port, tls_port):
     log(f"[{who}] INSECURE listener on :{plain_port} (trusts whatever the caller claims)", "yellow")
 
     fetch_svid(who)  # blocks until SPIRE is running and this workload is registered
+    # Once we have an identity, the unauthenticated path must go away, or attackers just use it.
+    plain.shutdown()
+    plain.server_close()
+    log(f"[{who}] INSECURE listener on :{plain_port} CLOSED (identity now required)", "yellow")
     secure = ThreadingHTTPServer(("", tls_port), Handler)
     secure.socket = tls_context(server=True).wrap_socket(secure.socket, server_side=True)
     log(f"[{who}] mTLS listener on :{tls_port} (callers must present an SVID from {TD})", "green")

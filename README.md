@@ -65,14 +65,14 @@ Run the real flow (User → Orchestrator → Research Agent → Search Tool):
 2. Runs the real agent chain once without identity checks. The Orchestrator hands the question to the Research Agent, which calls the Search Tool, and the container is deleted when it finishes.
 
 ```bash
-docker compose run --rm orchestrator "Why do AI agents need verifiable identities?"
+docker compose run --rm orchestrator --insecure "Why do AI agents need verifiable identities?"
 ```
 
 Now run the attacker. It sends exactly what the real agent sends: `agent_name = "research-agent"`.
 3. Runs the attacker once. It calls the Search Tool claiming to be research-agent, and the Search Tool lets it in because it only checks the name.
 
 ```bash
-docker compose run --rm fake-agent
+docker compose run --rm fake-agent --insecure
 ```
 
 **What we observe.** In Terminal A, the two requests look **identical**
@@ -231,6 +231,13 @@ Search Tool: request on mTLS endpoint
   Authenticated SPIFFE : spiffe://ai-governance.demo/agent/fake   (from the caller's verified SVID)
   Identity verification/mapping FAILED: 'research-agent' must be spiffe://ai-governance.demo/agent/research
   >>> REQUEST DENIED
+```
+
+And the attacker can't fall back to the old plain-HTTP path either. Each service closed it the moment it got its SVID:
+
+```bash
+docker compose run --rm fake-agent --insecure
+# ConnectionRefusedError: the insecure port no longer exists
 ```
 
 ---
