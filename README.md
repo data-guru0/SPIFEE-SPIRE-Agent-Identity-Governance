@@ -65,14 +65,14 @@ Run the real flow (User → Orchestrator → Research Agent → Search Tool):
 2. Runs the real agent chain once without identity checks. The Orchestrator hands the question to the Research Agent, which calls the Search Tool, and the container is deleted when it finishes.
 
 ```bash
-docker compose run --rm orchestrator --insecure "Why do AI agents need verifiable identities?"
+docker compose run --rm orchestrator "Why do AI agents need verifiable identities?"
 ```
 
 Now run the attacker. It sends exactly what the real agent sends: `agent_name = "research-agent"`.
 3. Runs the attacker once. It calls the Search Tool claiming to be research-agent, and the Search Tool lets it in because it only checks the name.
 
 ```bash
-docker compose run --rm fake-agent --insecure
+docker compose run --rm fake-agent
 ```
 
 **What we observe.** In Terminal A, the two requests look **identical**
